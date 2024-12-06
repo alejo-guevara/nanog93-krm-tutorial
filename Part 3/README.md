@@ -1,6 +1,6 @@
 # Part 3: Building your own automation framework using KRM
 
-Note: Not covered during tutorial
+**Note: Not covered during tutorial**
 
 In this section, we will delve deeper into the Kubernetes Machinery. This knowledge will equip you to create and manage your own automation APIs and business logic effectively.
 
