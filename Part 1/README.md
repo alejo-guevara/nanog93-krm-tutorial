@@ -6,25 +6,41 @@ This lab demonstrates the evolution of deploying a traffic generator app (`iperf
 
 ### **Step 0: Setup Kubernetes Clusters**
 
-1. **Set Up Two Kind Clusters**  
+#### **What is Kind?**
+**Kind** is a opensource tool for running local Kubernetes clusters using Docker container "nodes." It’s great for learning, testing, or developing on Kubernetes.
+
+#### **Kind Installation**
+
+1. Import the locally cached kind node container image
+    ```shell
+    docker image load -i /var/cache/kindest-node.tar
+    ```
+
+2. Create docker network for kind and set iptable rule
+    ```shell
+    # pre-creating the kind docker bridge. This is to avoid an issue with kind running in codespaces. 
+    docker network create -d=bridge \
+      -o com.docker.network.bridge.enable_ip_masquerade=true \
+      -o com.docker.network.driver.mtu=1500 \
+      --subnet fc00:f853:ccd:e793::/64 kind
+    
+    # Allow the kind cluster to communicate with the later created containerlab topology
+    sudo iptables -I DOCKER-USER -o br-$(docker network inspect -f '{{ printf "%.12s" .ID }}' kind) -j ACCEPT
+    ```
+
+
+3. **Set Up Two Kind Clusters**  
    - Create two Kubernetes clusters:
      ```bash
      kind create cluster --name kind-k8s1
      kind create cluster --name kind-k8s2
      ```
 
-2. **Preload the iperf3 Docker Images**  
+4. **Preload the iperf3 Docker Images**  
    - Load the iperf3 image into both clusters:
      ```bash
      kind load image-archive iperf3.tar --name kind-k8s1
      kind load image-archive iperf3.tar --name kind-k8s2
-     ```
-
-3. **Verify Cluster Access**  
-   - Check cluster connectivity:
-     ```bash
-     kubectl cluster-info --context kind-kind-k8s1
-     kubectl cluster-info --context kind-kind-k8s2
      ```
 
 ---
