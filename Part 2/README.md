@@ -1,4 +1,4 @@
-# Autocon 2 - Kubenet Workshop - Part 2
+# Leveraging KRM for Declarative Network Automation - Tutorial - Part 2
 
 ## Overview
 
