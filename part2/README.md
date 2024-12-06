@@ -10,7 +10,7 @@ Following are the steps to setup the environment.
 
 ```shell
 # change into Part 2 directory
-cd /workspaces/ac2-kubenet-workshop/Part\ 2/
+cd /workspaces/ac2-kubenet-workshop/part2
 ```
 
 ### Load pre-cached container images

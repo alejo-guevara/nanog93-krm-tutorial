@@ -2,9 +2,33 @@
 
 This lab demonstrates the evolution of deploying a traffic generator app (`iperf3`) in Kubernetes from manual manifests to Helm Charts, and finally to CRD-based declarative management using a custom controller.
 
+## Infrastructure setup
+
+Following are the steps to setup the environment.
+
+Get into the workspace folder for this part of the lab
+
+```shell
+# change into Part 1 directory
+cd /workspaces/nanog93-krm-tutorial/part1
+```
+
+Build iperf docker images
+```shell
+docker build -t iperf3-client:0.1a -f iperf-images/Dockerfile.iperf3client
+docker build -t iperf3-server:0.1a -f iperf-images/Dockerfile.iperf3server
+```
+
+### Load pre-cached container images
+
+```shell
+# import the locally cached sr-linux container image
+docker image load -i /var/cache/srlinux.tar
+```
+
 ---
 
-### **Step 0: Setup Kubernetes Clusters**
+### **Setup Kubernetes Kind App**
 
 #### **What is Kind?**
 **Kind** is a opensource tool for running local Kubernetes clusters using Docker container "nodes." It’s great for learning, testing, or developing on Kubernetes.
@@ -29,18 +53,20 @@ This lab demonstrates the evolution of deploying a traffic generator app (`iperf
     ```
 
 
-3. **Set Up Two Kind Clusters**  
+3. **Start ContainerLab Topology**  
    - Create two Kubernetes clusters:
-     ```bash
-     kind create cluster --name kind-k8s1
-     kind create cluster --name kind-k8s2
-     ```
+      ```shell
+      # deploy Nokia SRL containers via containerlab
+      cd clab-topology
+      sudo containerlab deploy
+      cd -
+      ```
 
 4. **Preload the iperf3 Docker Images**  
    - Load the iperf3 image into both clusters:
      ```bash
-     kind load image-archive iperf3.tar --name kind-k8s1
-     kind load image-archive iperf3.tar --name kind-k8s2
+     kind load image iperf3-client:0.1a --name kind-k8s1
+     kind load image iperf3-server:0.1a --name kind-k8s2
      ```
 
 ---
