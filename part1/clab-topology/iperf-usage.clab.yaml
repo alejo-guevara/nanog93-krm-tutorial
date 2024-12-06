@@ -30,8 +30,7 @@ topology:
       mgmt-ipv4: 172.21.0.210
       image-pull-policy: never
   links:
-    - endpoints: ["dev1:e1-1","dev2:e1-1"]
-    - endpoints: ["dev1:e1-10","k8s01-control-plane:eth1"]
-    - endpoints: ["dev1:e1-11","k8s02-control-plane:eth1"]      
+      - endpoints: ["dev1:e1-10","k8s01-control-plane:eth1"]
+      - endpoints: ["dev1:e1-11","k8s02-control-plane:eth1"]      
 
      

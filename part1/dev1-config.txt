@@ -1,0 +1,28 @@
+    network-instance default {
+        interface ethernet-1/10.0 {
+        }
+        interface ethernet-1/11.0 {
+        }
+    }
+    interface ethernet-1/10 {
+        admin-state enable
+        subinterface 0 {
+            admin-state enable
+            ipv4 {
+                admin-state enable
+                address 172.254.101.1/24 {
+                }
+            }
+        }
+    }
+    interface ethernet-1/11 {
+        admin-state enable
+        subinterface 0 {
+            admin-state enable
+            ipv4 {
+                admin-state enable
+                address 172.254.102.1/24 {
+                }
+            }
+        }
+    }    

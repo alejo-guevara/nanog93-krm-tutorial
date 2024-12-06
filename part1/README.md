@@ -15,8 +15,8 @@ cd /workspaces/nanog93-krm-tutorial/part1
 
 Build iperf docker images
 ```shell
-docker build -t iperf3-client:0.1a -f iperf-images/Dockerfile.iperf3client
-docker build -t iperf3-server:0.1a -f iperf-images/Dockerfile.iperf3server
+docker build -t iperf3-client:0.1a -f iperf-images/Dockerfile.iperf3client .
+docker build -t iperf3-server:0.1a -f iperf-images/Dockerfile.iperf3server .
 ```
 
 ### Load pre-cached container images
@@ -59,22 +59,82 @@ docker image load -i /var/cache/srlinux.tar
       # deploy Nokia SRL containers via containerlab
       cd clab-topology
       sudo containerlab deploy
-      cd -
+      cd ..
       ```
 
-4. **Preload the iperf3 Docker Images**  
+4. **Kubernestes Contexts**
+  - You should be able to see both contexts, and '*' showing the current one.
+    ```
+    sudo kubectl config get-contexts
+    CURRENT   NAME         CLUSTER      AUTHINFO     NAMESPACE
+              kind-k8s01   kind-k8s01   kind-k8s01   
+    *         kind-k8s02   kind-k8s02   kind-k8s02  
+    ```
+
+4. **Preload the iperf3 Docker Images to Kind Kubernetes**  
    - Load the iperf3 image into both clusters:
      ```bash
-     kind load image iperf3-client:0.1a --name kind-k8s1
-     kind load image iperf3-server:0.1a --name kind-k8s2
+     kind load docker-image iperf3-client:0.1a --name k8s01
+     kind load docker-image iperf3-server:0.1a --name k8s02
      ```
+
+
+5. **Set srlinux dev1 basic configuration**
+  - Get into dev1 and set a basic configuration
+    ```shell
+    docker exec -ti dev1 sr_cli
+    ```
+  - You should see something like this inside the srlinux interface:
+    ```
+      ❯ docker exec -ti dev1 sr_cli
+      Using configuration file(s): []
+      Welcome to the srlinux CLI.
+      Type 'help' (and press <ENTER>) if you need any help using this.
+      --{ + running }--[  ]--
+      A:dev1#
+    ```
+
+  - Now, paste the following:
+    ```
+    enter candidate
+        network-instance default {
+          interface ethernet-1/10.0 {
+          }
+          interface ethernet-1/11.0 {
+          }
+      }
+      interface ethernet-1/10 {
+          admin-state enable
+          subinterface 0 {
+              admin-state enable
+              ipv4 {
+                  admin-state enable
+                  address 172.254.101.1/24 {
+                  }
+              }
+          }
+      }
+      interface ethernet-1/11 {
+          admin-state enable
+          subinterface 0 {
+              admin-state enable
+              ipv4 {
+                  admin-state enable
+                  address 172.254.102.1/24 {
+                  }
+              }
+          }
+    commit now
+    quit      
+    ```
+  - dev1 should be configured and ready to communicate the iperf instances
 
 ---
 
 ### **Step 1: Create Traffic Generator Manually with Manifests**
 
-#### **1A: Deploy Server Pods on `kind-k8s2`**
-1. Create `iperf3-server.yaml` with this content:
+#### **1A: Deploy Server Pods on `kind-k8s02`**
+1. Use `iperf3-server.yaml` in folder `manifests` with this content:
    ```yaml
    apiVersion: v1
    kind: Pod
@@ -89,11 +149,13 @@ docker image load -i /var/cache/srlinux.tar
    ```
 2. Apply the manifest:
    ```bash
-   kubectl apply -f iperf3-server.yaml --context kind-kind-k8s2
+   sudo kubectl apply -f iperf3-server.yaml --context kind-k8s02
    ```
 
-#### **1B: Deploy Client Pods on `kind-k8s1`**
-1. Create `iperf3-client.yaml`:
+3. Uses `sudo kubectl get pods  --context kind-k8s02` to check if the pod is running    
+
+#### **1B: Deploy Client Pods on `kind-k8s01`**
+1. Uses  `iperf3-client.yaml` now:
    ```yaml
    apiVersion: v1
    kind: Pod
@@ -107,13 +169,13 @@ docker image load -i /var/cache/srlinux.tar
    ```
 2. Apply the manifest:
    ```bash
-   kubectl apply -f iperf3-client.yaml --context kind-kind-k8s1
+   sudo kubectl apply -f iperf3-client.yaml --context kind-k8s01
    ```
 
 #### **Verify Traffic**
 - Verify that traffic is flowing:
   ```bash
-  kubectl logs iperf3-client --context kind-kind-k8s1
+  sudo kubectl logs iperf3-client --context kind-kind-k8s01
   ```
 
 ---
