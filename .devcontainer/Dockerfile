@@ -79,8 +79,5 @@ COPY ./.devcontainer/zsh/.zshrc /home/vscode/.zshrc
 COPY ./.devcontainer/zsh/.p10k.zsh /home/vscode/.p10k.zsh
 COPY ./.devcontainer/zsh/install-zsh-plugins.sh /tmp/install-zsh-plugins.sh
 
-# iperf3 Dockerfiles
-COPY ./.devcontainer/Dockerfile.iperf3client /tmp/Dockerfile.iperf3client
-COPY ./.devcontainer/Dockerfile.iperf3server /tmp/Dockerfile.iperf3server
 
 RUN bash -c "/tmp/install-zsh-plugins.sh "
