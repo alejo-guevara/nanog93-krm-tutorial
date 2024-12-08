@@ -10,7 +10,7 @@ Following are the steps to setup the environment.
 
 ```shell
 # change into Part 2 directory
-cd /workspaces/ac2-kubenet-workshop/part2
+cd /workspaces/nanog93-krm-tutorial/part2
 ```
 
 ### Load pre-cached container images
