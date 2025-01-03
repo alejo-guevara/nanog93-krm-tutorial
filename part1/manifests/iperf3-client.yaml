@@ -8,7 +8,7 @@ spec:
     image: iperf3-client:0.1a
     env:
     - name: CUSTOMER_PORT
-      value: 3001          
+      value: "30001"          
     args:
     - /bin/sh
     - -c
