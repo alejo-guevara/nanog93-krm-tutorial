@@ -359,15 +359,6 @@ Helm is a package manager for Kubernetes, simplifying application deployment and
     sudo helm delete  my-iperf3-server
     ```
 
-
-
-#### **Verify Deployment**
-- Check that all pods are running:
-  ```bash
-  kubectl get pods --context kind-kind-k8s1
-  kubectl get pods --context kind-kind-k8s2
-  ```
-
 ---
 
 ### **Step 3: Transition to CRDs and Controller**
