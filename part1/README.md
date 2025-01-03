@@ -136,16 +136,36 @@ docker image load -i /var/cache/srlinux.tar
 #### **1A: Deploy Server Pods on `kind-k8s02`**
 1. Use `iperf3-server.yaml` in folder `manifests` with this content:
    ```yaml
-   apiVersion: v1
-   kind: Pod
-   metadata:
-     name: iperf3-server
-   spec:
-     containers:
-     - name: iperf3-server
-       image: iperf3-server:0.1a
-       ports:
-       - containerPort: 5201
+    # Pod definition for iperf3-server
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: iperf3-server
+      labels:
+        app: iperf3-server
+    spec:
+      containers:
+      - name: iperf3-server
+        image: iperf3-server:0.1a
+        ports:
+        - containerPort: 5201
+    
+    ---
+    
+    # Service definition for iperf3-server
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: iperf3-server-service
+    spec:
+      type: NodePort
+      selector:
+        app: iperf3-server
+      ports:
+      - protocol: TCP
+        port: 5201
+        targetPort: 5201
+        nodePort: 30001
    ```
 2. Apply the manifest:
    ```bash
@@ -165,7 +185,7 @@ docker image load -i /var/cache/srlinux.tar
      containers:
      - name: iperf3-client
        image: iperf3-client:0.1a
-       args: ["-c", "172.254.102.101", "-p", "5201"]
+       args: ["-c", "172.254.102.101", "-p", "30001"]
    ```
 2. Apply the manifest:
    ```bash
