@@ -172,7 +172,7 @@ docker image load -i /var/cache/srlinux.tar
    sudo kubectl apply -f iperf3-server.yaml --context kind-k8s02
    ```
 
-3. Uses `sudo kubectl get pods  --context kind-k8s02` to check if the pod is running    
+3. Uses `sudo kubectl get pods  --context kind-k8s02` to check if the pod is running and `sudo kubectl get svc --context kind-k8s02` for the service.    
 
 #### **1B: Deploy Client Pods on `kind-k8s01`**
 1. Uses  `iperf3-client.yaml` now:
@@ -195,12 +195,39 @@ docker image load -i /var/cache/srlinux.tar
 #### **Verify Traffic**
 - Verify that traffic is flowing:
   ```bash
-  sudo kubectl logs iperf3-client --context kind-kind-k8s01
+  sudo kubectl logs iperf3-client --context kind-k8s01
   ```
-
+- Output should be something like this:
+  ```
+  Connecting to host 172.254.102.101, port 30001
+  [  5] local 10.244.0.6 port 59900 connected to 172.254.102.101 port 30001
+  [ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+  [  5]   0.00-1.00   sec  1.25 MBytes  10.5 Mbits/sec    2   1.41 KBytes       
+  [  5]   1.00-2.00   sec   768 KBytes  6.29 Mbits/sec   36   1.41 KBytes       
+  [  5]   2.00-3.00   sec  0.00 Bytes  0.00 bits/sec    1   1.41 KBytes       
+  [  5]   3.00-4.00   sec   896 KBytes  7.34 Mbits/sec   20   1.41 KBytes       
+  [  5]   4.00-5.00   sec  1.00 MBytes  8.39 Mbits/sec    8   1.41 KBytes       
+  [  5]   5.00-6.00   sec  0.00 Bytes  0.00 bits/sec    1   1.41 KBytes       
+  [  5]   6.00-7.00   sec   896 KBytes  7.35 Mbits/sec    8   1.41 KBytes       
+  [  5]   7.00-8.00   sec  1.00 MBytes  8.39 Mbits/sec    8   1.41 KBytes       
+  [  5]   8.00-9.00   sec  0.00 Bytes  0.00 bits/sec    1   1.41 KBytes       
+  [  5]   9.00-10.00  sec   896 KBytes  7.34 Mbits/sec   17   1.41 KBytes       
+  - - - - - - - - - - - - - - - - - - - - - - - - -
+  [ ID] Interval           Transfer     Bitrate         Retr
+  [  5]   0.00-10.00  sec  6.62 MBytes  5.56 Mbits/sec  102             sender
+  [  5]   0.00-10.25  sec  6.25 MBytes  5.11 Mbits/sec                  receiver
+  ```
+#### **Cleaning up**  
+- Remove pods and services via:
+  ```shell
+  sudo kubectl delete -f iperf3-client.yaml --context kind-k8s01
+  sudo kubectl delete -f iperf3-server.yaml --context kind-k8s02
+  ```
 ---
 
 ### **Step 2: Transition to Helm Charts**
+
+Helm is a package manager for Kubernetes, simplifying application deployment and management. A Helm chart is a collection of YAML templates and configurations that define a Kubernetes application, enabling versioned and repeatable installations. Charts make it easier to deploy complex apps with predefined configurations.
 
 #### **2A: Create Helm Chart for iperf3**
 
@@ -212,39 +239,127 @@ docker image load -i /var/cache/srlinux.tar
    ├── templates/
        ├── deployment-server.yaml
        ├── deployment-client.yaml
+       ├── service-server.yaml
    ```
 
-2. Define `values.yaml`:
-   ```yaml
-   server:
-     enabled: true
-     replicas: 10
+2. We'll use the `20-instances-20K-values.yml` file for the parameters. Use `code 20-instances-20K-values.yml` to open it and check it out.
 
-   client:
-     enabled: true
-     replicas: 10
-   ```
-
-3. Apply the chart:
+3. Install Helm tool:
    ```bash
-   helm install iperf3-chart ./iperf3-chart --context kind-kind-k8s1
+   cd /workspaces/nanog93-krm-tutorial/part1
+   curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+   chmod 700 get_helm.sh
+   ./get_helm.sh
    ```
 
-#### **2B: Scale Instances**
-1. Update `values.yaml` for 40 instances:
-   ```yaml
-   server:
-     enabled: true
-     replicas: 40
-
-   client:
-     enabled: true
-     replicas: 40
-   ```
-2. Upgrade Helm release:
+4. Create the chart package:
    ```bash
-   helm upgrade iperf3-chart ./iperf3-chart --context kind-kind-k8s1
+   sudo helm package iperf3-chart 
    ```
+
+5. Install iPerf server instances:
+   ```bash
+   sudo kubectl config use-context kind-k8s02
+   sudo helm install my-iperf3-server iperf3-chart --set client.enabled=false -f 20-instances-20K-values.yml
+   ```
+
+6. Check the status of the pods
+   ```bash
+   sudo kubectl get pods --context kind-k8s02
+   ```
+   You should see something like
+   ```bash
+    /workspaces/nanog93-krm-tutorial/part1 ·main* 19:02:54
+    ❯ sudo kubectl get pods --context kind-k8s02
+    NAME                                READY   STATUS    RESTARTS   AGE
+    iperf3-server-1-79fbb7b58d-hfk8s    1/1     Running   0          9s
+    iperf3-server-10-5d6595f5c8-nc99b   1/1     Running   0          11s
+    iperf3-server-11-679f49d7c-7jcvk    1/1     Running   0          11s
+    iperf3-server-12-765bb46bd8-pk294   1/1     Running   0          11s
+    iperf3-server-13-86c8d7c6f5-bwk6l   1/1     Running   0          11s
+    iperf3-server-14-f88c6994b-d9l52    1/1     Running   0          11s
+    iperf3-server-15-6d69d89669-sdgk8   1/1     Running   0          11s
+    iperf3-server-16-79bc47fbc6-n9km8   1/1     Running   0          11s
+    iperf3-server-17-64ffcb4d67-sjm25   1/1     Running   0          9s
+    iperf3-server-18-5696b48858-rnt6n   1/1     Running   0          10s
+    iperf3-server-19-6ff7859745-zjmvx   1/1     Running   0          9s
+    iperf3-server-2-c9774dc4f-4nlww     1/1     Running   0          11s
+    iperf3-server-20-7986d8d4fc-wgkfw   1/1     Running   0          10s
+    iperf3-server-3-6977f48f6b-j4ksx    1/1     Running   0          10s
+    iperf3-server-4-84575987f-89wj7     1/1     Running   0          10s
+    iperf3-server-5-59488f565b-wg6bv    1/1     Running   0          10s
+    iperf3-server-6-84dcc76c49-9647n    1/1     Running   0          9s
+    iperf3-server-7-5f88f767cd-smn5n    1/1     Running   0          9s
+    iperf3-server-8-667cf5cdff-hkqsj    1/1     Running   0          11s
+    iperf3-server-9-7bbdf5f6b4-qlzdz    1/1     Running   0          11s
+   ```
+7. Now, let's start the client instances:
+   ```bash
+   sudo kubectl config use-context kind-k8s01
+   sudo helm install my-iperf3-client iperf3-chart --set server.enabled=false -f 20-instances-20K-values.yml
+   ```
+8. Check the status of the clients:
+    ```bash
+    sudo kubectl get pods
+    NAME                                READY   STATUS    RESTARTS   AGE
+    iperf3-client-1-5844cf645b-sw5cx    1/1     Running   0          12s
+    iperf3-client-10-7cb8787cdd-tbr9b   1/1     Running   0          12s
+    iperf3-client-11-5fcd844c88-jmpnd   1/1     Running   0          12s
+    iperf3-client-12-7487c4fbbd-xszvx   1/1     Running   0          12s
+    iperf3-client-13-5cdbd5d8fb-n8fcc   1/1     Running   0          12s
+    iperf3-client-14-77685b8d88-s6tnm   1/1     Running   0          10s
+    iperf3-client-15-7f9b9854dd-9swz2   1/1     Running   0          11s
+    iperf3-client-16-5b6f7fb64-886c9    1/1     Running   0          10s
+    iperf3-client-17-7fccdfcc7b-8xr7l   1/1     Running   0          11s
+    iperf3-client-18-6f47d84b96-5cswb   1/1     Running   0          11s
+    iperf3-client-19-7b7f5c4bd4-zn5hm   1/1     Running   0          12s
+    iperf3-client-2-5c46dbb584-rtb47    1/1     Running   0          12s
+    iperf3-client-20-7c9b694bcb-nwcmd   1/1     Running   0          12s
+    iperf3-client-3-788b8d5f44-lbckz    1/1     Running   0          12s
+    iperf3-client-4-67ffc894b8-xz8n5    1/1     Running   0          11s
+    iperf3-client-5-7cfd79ccbd-fw8nb    1/1     Running   0          12s
+    iperf3-client-6-78cbfd49c6-7vg9r    1/1     Running   0          12s
+    iperf3-client-7-6cf9df8c44-d8zd6    1/1     Running   0          10s
+    iperf3-client-8-f86645d9b-6qbzx     1/1     Running   0          10s
+    iperf3-client-9-8dd769c56-z6r7p     1/1     Running   0          11s
+    ```
+    Let's check the activity in one of the instances:
+    ```bash
+    sudo kubectl logs iperf3-client-15-7f9b9854dd-9swz2                                  
+    Connecting to host 172.254.102.101, port 30015
+    [  5] local 10.244.0.21 port 41166 connected to 172.254.102.101 port 30015
+    [  7] local 10.244.0.21 port 41182 connected to 172.254.102.101 port 30015
+    [  9] local 10.244.0.21 port 41192 connected to 172.254.102.101 port 30015
+    [ 11] local 10.244.0.21 port 41194 connected to 172.254.102.101 port 30015
+    [ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+    [  5]   0.00-1.15   sec  4.00 KBytes  28.6 Kbits/sec    0   14.1 KBytes       
+    [  7]   0.00-1.15   sec  4.00 KBytes  28.6 Kbits/sec    0   14.1 KBytes       
+    [  9]   0.00-1.15   sec  4.00 KBytes  28.6 Kbits/sec    0   14.1 KBytes       
+    [ 11]   0.00-1.15   sec  4.00 KBytes  28.6 Kbits/sec    0   14.1 KBytes       
+    [SUM]   0.00-1.15   sec  16.0 KBytes   114 Kbits/sec    0             
+    - - - - - - - - - - - - - - - - - - - - - - - - -
+    [  5]   1.15-2.02   sec  2.00 KBytes  18.9 Kbits/sec    0   14.1 KBytes       
+    [  7]   1.15-2.02   sec  2.00 KBytes  18.9 Kbits/sec    0   14.1 KBytes       
+    [  9]   1.15-2.02   sec  2.00 KBytes  18.9 Kbits/sec    0   14.1 KBytes       
+    [ 11]   1.15-2.02   sec  2.00 KBytes  18.9 Kbits/sec    0   14.1 KBytes 
+    ```
+9. Let's see the stat activity in the switch:
+    ```bash
+    docker exec -ti dev1 sr_cli
+    ```
+    then inside the switch you might use:
+    ```shell
+    watch show interface ethernet-1/10 detail | grep Octets
+    ```    
+10. Cleaning up
+    ```shell
+    sudo kubectl config use-context kind-k8s01
+    sudo helm delete  my-iperf3-client
+    sudo kubectl config use-context kind-k8s02
+    sudo helm delete  my-iperf3-server
+    ```
+
+
 
 #### **Verify Deployment**
 - Check that all pods are running:
