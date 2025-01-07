@@ -1,0 +1,9 @@
+apiVersion: example.com/v1
+kind: IperfServer
+metadata:
+  name: iperf3-server
+spec:
+  replicas: 10
+  initPort: 30001
+  endPort: 30010
+  image: iperf3-server:0.1a

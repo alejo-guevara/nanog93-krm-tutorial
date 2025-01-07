@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iperf-client-controller
+  namespace: default
+data:
+  controller.py: |
+    import time
+    from kubernetes import client, config
+    from deepdiff import DeepDiff
+
+    # Load in-cluster configuration
+    config.load_incluster_config()
+    api_instance = client.CustomObjectsApi()
+    core_api = client.CoreV1Api()
+
+    namespace = "default"
+    last_seen_crds = {}
+
+    def reconcile_iperf_client():
+        global last_seen_crds
+
+        # Get current CRDs
+        crds = api_instance.list_namespaced_custom_object(
+            group="example.com", version="v1", namespace=namespace, plural="iperfclients"
+        )
+        current_crds = {crd['metadata']['name']: crd['spec'] for crd in crds['items']}
+
+        # Handle deleted CRDs: Delete pods for removed CRDs
+        deleted_crds = set(last_seen_crds) - set(current_crds)
+        for deleted_crd in deleted_crds:
+            delete_pods(deleted_crd)
+
+        # Handle added/updated CRDs
+        for name, spec in current_crds.items():
+            if name not in last_seen_crds or DeepDiff(last_seen_crds[name], spec, ignore_order=True):
+                create_or_update_pods(name, spec)
+
+        # Update the last seen CRDs
+        last_seen_crds = current_crds
+
+    def create_or_update_pods(name, spec):
+        target_ip = spec['targetIP']
+        init_port = spec['initPort']
+        end_port = spec['endPort']
+        image = spec['image']
+
+        for port in range(init_port, end_port + 1):
+            pod_name = f"{name}-{port}"
+
+            # Check if the pod exists
+            existing_pods = core_api.list_namespaced_pod(namespace=namespace, label_selector=f"app={name}")
+            if any(pod.metadata.name == pod_name for pod in existing_pods.items):
+                print(f"Pod {pod_name} already exists, skipping creation")
+                continue
+
+            # Create the pod with a loop to keep it running
+            pod = client.V1Pod(
+                metadata=client.V1ObjectMeta(name=pod_name, labels={"app": name}),
+                spec=client.V1PodSpec(containers=[
+                    client.V1Container(
+                        name="iperf3-client",
+                        image=image,
+                        env=[
+                            client.V1EnvVar(name="CUSTOMER_PORT", value=str(port)),
+                            client.V1EnvVar(name="TARGET_IP", value=target_ip),
+                        ],
+                        args=[
+                            "/bin/sh", 
+                            "-c", 
+                            "while true; do iperf3 -c $TARGET_IP -p $CUSTOMER_PORT; sleep 10; done"
+                        ]
+                    )
+                ])
+            )
+
+            try:
+                core_api.create_namespaced_pod(namespace=namespace, body=pod)
+                print(f"Created pod {pod_name}")
+            except client.exceptions.ApiException as e:
+                print(f"Failed to create pod {pod_name}: {e}")
+
+
+
+    def delete_pods(crd_name):
+        # List and delete pods matching the CRD name
+        pods = core_api.list_namespaced_pod(namespace=namespace, label_selector=f"app={crd_name}")
+        for pod in pods.items:
+            pod_name = pod.metadata.name
+            try:
+                core_api.delete_namespaced_pod(name=pod_name, namespace=namespace)
+                print(f"Deleted pod {pod_name}")
+            except client.exceptions.ApiException as e:
+                print(f"Failed to delete pod {pod_name}: {e}")
+
+    while True:
+        reconcile_iperf_client()
+        time.sleep(30)

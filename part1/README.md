@@ -364,45 +364,44 @@ Helm is a package manager for Kubernetes, simplifying application deployment and
 ### **Step 3: Transition to CRDs and Controller**
 
 #### **3A: Create a Custom Resource Definition**
-1. Define a `TrafficGenerator` CRD:
-   ```yaml
-   apiVersion: apiextensions.k8s.io/v1
-   kind: CustomResourceDefinition
-   metadata:
-     name: trafficgenerators.example.com
-   spec:
-     group: example.com
-     names:
-       kind: TrafficGenerator
-       listKind: TrafficGeneratorList
-       plural: trafficgenerators
-       singular: trafficgenerator
-     scope: Namespaced
-     versions:
-     - name: v1
-       served: true
-       storage: true
-       schema:
-         openAPIV3Schema:
-           type: object
-           properties:
-             spec:
-               type: object
-               properties:
-                 replicas:
-                   type: integer
-                 bufferSize:
-                   type: string
-                 bandwidth:
-                   type: string
-   ```
+1. Define a `TrafficGenerator` CRD for iperf-server 
+    ```shell
+    sudo kubectl apply -f ./CRDs/iperf-server-crd.yaml use-context kind-k8s02
+    ```
 
-2. Apply the CRD:
-   ```bash
-   kubectl apply -f trafficgenerator-crd.yaml
-   ```
+2. Check iperf-server CRD setup:
+    ```shell
+    sudo kubectl get CustomResourceDefinition  --context kind-k8s02
+    NAME                       CREATED AT
+    iperfservers.example.com   2025-01-07T21:52:04Z
+    ```
+3. Add python code for reconciler in ConfigMap
+    ```shell
+    sudo kubectl apply -f ./CRDs/iperf-server-configmap.yaml --context kind-k8s02
+    sudo kubectl apply -f ./CRDs/iperf-server-controller.yaml --context kind-k8s02
+    ```
+4. Check if the controller is running via `sudo kubectl get pods --context kind-k8s02`     
+    ```bash
+    NAME                      READY   STATUS             RESTARTS         AGE
+    iperf-client-controller   1/1     Running            0                2m36s
+    ```
 
----
+5. If it's running the now you can add the server CRDs values:
+    ```shell
+    sudo kubectl apply -f ./CRDs/iperf-server-setup.yaml --context kind-k8s02
+    ```
+
+6. You should see 10 instances running after a few minutes. open `./CRDs/iperf-server-setup.yaml` and inspect the values used.
+
+7. Now, let;s do the same with the client
+    ```shell
+    sudo kubectl apply -f ./CRDs/iperf-client-crd.yaml --context kind-k8s01
+    sudo kubectl apply -f ./CRDs/iperf-client-configmap.yaml --context kind-k8s01
+    sudo kubectl apply -f ./CRDs/iperf-client-controller.yaml --context kind-k8s01
+    sudo kubectl apply -f ./CRDs/iperf-client-setup.yaml --context kind-k8s01
+    ```
+
+8. Inspect the instances `sudo kubectl get pods --context kind-k8s01`
 
 #### **3B: Create a Controller**
 
@@ -411,42 +410,6 @@ Helm is a package manager for Kubernetes, simplifying application deployment and
    - Generate server and client deployments dynamically.
    - Automatically scale deployments based on `spec.replicas`.
 
----
-
-#### **3C: Define a TrafficGenerator Resource**
-1. Create a `TrafficGenerator` instance:
-   ```yaml
-   apiVersion: example.com/v1
-   kind: TrafficGenerator
-   metadata:
-     name: iperf3-gen
-   spec:
-     replicas: 40
-     bufferSize: "4K"
-     bandwidth: "40K"
-   ```
-
-2. Apply the resource:
-   ```bash
-   kubectl apply -f trafficgenerator.yaml
-   ```
-
----
-
-### **Step 4: Monitor and Verify**
-
-#### **Monitor TrafficGenerator Status**
-- Check the CRD's status for active replicas:
-  ```bash
-  kubectl get trafficgenerator iperf3-gen -o yaml
-  ```
-
-#### **Verify Traffic**
-- Ensure all pods are running and traffic flows:
-  ```bash
-  kubectl get pods
-  kubectl logs iperf3-client
-  ```
 
 ---
 

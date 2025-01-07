@@ -1,0 +1,31 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: iperfservers.example.com
+spec:
+  group: example.com
+  names:
+    kind: IperfServer
+    listKind: IperfServerList
+    plural: iperfservers
+    singular: iperfserver
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                replicas:
+                  type: integer
+                initPort:
+                  type: integer
+                endPort:
+                  type: integer
+                image:
+                  type: string

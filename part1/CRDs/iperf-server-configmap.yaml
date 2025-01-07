@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iperf-server-controller
+  namespace: default
+data:
+  controller.py: |
+    import time
+    from kubernetes import client, config
+
+    # Load in-cluster configuration
+    config.load_incluster_config()
+    api_instance = client.CustomObjectsApi()
+    apps_api = client.AppsV1Api()
+    core_api = client.CoreV1Api()
+
+    namespace = "default"
+
+    def reconcile_iperf_server():
+        crds = api_instance.list_namespaced_custom_object(
+            group="example.com", version="v1", namespace=namespace, plural="iperfservers"
+        )
+        for crd in crds['items']:
+            name = crd['metadata']['name']
+            replicas = crd['spec']['replicas']
+            init_port = crd['spec']['initPort']
+            end_port = crd['spec']['endPort']
+            image = crd['spec']['image']
+
+            for i in range(replicas):
+                instance_name = f"{name}-{i}"
+                port = init_port + i
+
+                deployment = client.V1Deployment(
+                    metadata=client.V1ObjectMeta(name=instance_name),
+                    spec=client.V1DeploymentSpec(
+                        replicas=1,
+                        selector=client.V1LabelSelector(match_labels={"app": instance_name}),
+                        template=client.V1PodTemplateSpec(
+                            metadata=client.V1ObjectMeta(labels={"app": instance_name}),
+                            spec=client.V1PodSpec(containers=[
+                                client.V1Container(
+                                    name="iperf3-server",
+                                    image=image,
+                                    ports=[client.V1ContainerPort(container_port=5201)]
+                                )
+                            ])
+                        )
+                    )
+                )
+
+                service = client.V1Service(
+                    metadata=client.V1ObjectMeta(name=instance_name),
+                    spec=client.V1ServiceSpec(
+                        type="NodePort",
+                        selector={"app": instance_name},
+                        ports=[client.V1ServicePort(
+                            port=5201,
+                            target_port=5201,
+                            node_port=port
+                        )]
+                    )
+                )
+
+                try:
+                    apps_api.create_namespaced_deployment(namespace=namespace, body=deployment)
+                    core_api.create_namespaced_service(namespace=namespace, body=service)
+                except client.exceptions.ApiException as e:
+                    if e.status == 409:
+                        apps_api.replace_namespaced_deployment(name=instance_name, namespace=namespace, body=deployment)
+                        core_api.replace_namespaced_service(name=instance_name, namespace=namespace, body=service)
+
+    while True:
+        reconcile_iperf_server()
+        time.sleep(30)
