@@ -5,5 +5,5 @@ metadata:
 spec:
   targetIP: "172.254.102.101"  # Replace with server cluster IP
   initPort: 30001
-  endPort: 30004
+  endPort: 30005
   image: iperf3-client:0.1a
