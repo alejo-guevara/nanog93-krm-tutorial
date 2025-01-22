@@ -6,6 +6,63 @@ This second part of the workshop is mainly concerned with [SDC](https://docs.sdc
 
 ## Infrastructure setup
 
+### **Set Up Your Kubernetes Cluster (Kind)**
+
+#### **What is Codespaces?**
+GitHub Codespaces is a cloud-based development environment that lets you code directly in the cloud using Visual Studio Code. It provides pre-configured containers with your code, dependencies, and tools, allowing you to start coding instantly without setting up a local development environment.
+
+#### **Start your Codespaces instance**
+To start your lab, use this link: https://codespaces.new/cloud-native-everything/nanog93-krm-tutorial
+Then Check the configuration before continue. Ensure the repo name is: `cloud-native-everything/nanog93-krm-tutorial`
+Make sure you are using the 4-core instance
+
+There’s a free usage limit (120 core hours), which you can check under the Codespaces section
+https://github.com/settings/billing/summary.
+
+   **Important:** after using it, stop it and remove it at https://github.com/codespaces or it will keep using your free usage quota.
+
+Click on **Create codespace**
+
+Wait a few minutes for codespaces to load and go to the **Terminal** Section
+
+#### **What is Kind?**
+**Kind** is a opensource tool for running local Kubernetes clusters using Docker container "nodes." It’s great for learning, testing, or developing on Kubernetes.
+
+#### **Kind Installation**
+
+1. Import the locally cached kind node container image
+    ```shell
+    docker image load -i /var/cache/kindest-node.tar
+    ```
+
+2. Create docker network for kind and set iptable rule
+    ```shell
+    # pre-creating the kind docker bridge. This is to avoid an issue with kind running in codespaces. 
+    docker network create -d=bridge \
+      -o com.docker.network.bridge.enable_ip_masquerade=true \
+      -o com.docker.network.driver.mtu=1500 \
+      --subnet fc00:f853:ccd:e793::/64 kind
+    
+    # Allow the kind cluster to communicate with the later created containerlab topology
+    sudo iptables -I DOCKER-USER -o br-$(docker network inspect -f '{{ printf "%.12s" .ID }}' kind) -j ACCEPT
+    ```
+
+---
+
+### **Create your kubernetes cluster**
+1. **Create Kind Cluster for GitHub CodeSpaces**
+   Create one-node kubernetes cluster
+   ```bash
+   kind create cluster
+   ```
+2. **preload images**
+   ```shell
+   # Load the local images into the kind cluster
+   kind load image-archive /var/cache/data-server.tar
+   kind load image-archive /var/cache/config-server.tar
+   ```
+
+## **Prepping SDCIO Setup**   
 Following are the steps to setup the environment.
 
 ```shell
